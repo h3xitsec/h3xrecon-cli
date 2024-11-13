@@ -9,7 +9,7 @@ from loguru import logger
 from tabulate import tabulate
 from docopt import docopt
 from nats.aio.client import Client as NATS
-from h3xrecon_core import *
+from h3xrecon_core import Config, DatabaseManager, QueueManager
 
 VERSION = "0.0.1"
 
@@ -18,9 +18,22 @@ class H3XReconClient:
     
     def __init__(self, arguments):
         self.config = Config()
-        logger.debug(self.config.logging)
-        self.db = DatabaseManager(self.config.client.get("database").to_dict())
-        self.qm = QueueManager(self.config.client.get("nats"))
+        # Add console handler
+        logger.remove()
+        logger.add(
+           sink=lambda msg: print(msg),
+           level=self.config.client.get('logging').get('level'),
+           format=self.config.client.get('logging').get('format')
+        )
+        # Add file handler if configured
+        if self.config.client.get('logging').get('file_path'):
+            logger.add(
+                sink=self.config.client.get('logging').get('file_path'),
+                level=self.config.client.get('logging').get('level'),
+                rotation="500 MB"
+            )
+        self.db = DatabaseManager(self.config.client.get('database').to_dict())
+        self.qm = QueueManager(self.config.nats)
         #self.nc = NATS()
         
         # Initialize arguments only if properly parsed by docopt
