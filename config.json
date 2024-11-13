@@ -1,0 +1,17 @@
+{
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "database": "h3xrecon",
+        "user": "h3xrecon",
+        "password": "h3xrecon"
+    },
+    "nats": {
+        "host": "localhost",
+        "port": 4222
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+    }
+}
