@@ -1,0 +1,14 @@
+{
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "database": "h3xrecon",
+        "user": "h3xrecon",
+        "password": "h3xrecon"
+    },
+    "nats": {
+        "host": "localhost",
+        "port": 4222
+    },
+    "logs_level": "ERROR"
+}
