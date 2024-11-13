@@ -1,5 +1,12 @@
 from setuptools import setup, find_packages
 import os
+import subprocess
+
+# Get current git branch
+try:
+    current_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode('utf-8').strip()
+except (subprocess.CalledProcessError, FileNotFoundError):
+    current_branch = 'main'  # Fallback to main if git command fails
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -25,7 +32,7 @@ setup(
         "tabulate",
         "nats-py",
         "asyncpg",
-        "h3xrecon-core @ git+https://github.com/h3xitsec/h3xrecon-core.git@main"
+        f"h3xrecon-core @ git+https://github.com/h3xitsec/h3xrecon-core.git@{current_branch}"
     ],
     python_requires='>=3.9',
     entry_points={
