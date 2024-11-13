@@ -1,4 +1,4 @@
-[submodule "h3xrecon-core"]
+[submodule "submodules/h3xrecon-core"]
 	path = submodules/h3xrecon-core
 	url = https://github.com/h3xitsec/h3xrecon-core
 	branch = 1-move-cli-configuration-to-a-config-file
