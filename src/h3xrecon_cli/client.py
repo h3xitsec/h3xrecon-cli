@@ -18,23 +18,25 @@ class H3XReconClient:
     
     def __init__(self, arguments):
         self.config = Config()
+        if not self.config.client:
+            logger.error("Failed to load client configuration")
+            sys.exit(1)
         # Add console handler
         logger.remove()
         logger.add(
-           sink=lambda msg: print(msg),
-           level=self.config.client.get('logging').get('level'),
-           format=self.config.client.get('logging').get('format')
+            sink=lambda msg: print(msg),
+            level=self.config.logging.level,
+            format=self.config.logging.format
         )
         # Add file handler if configured
-        if self.config.client.get('logging').get('file_path'):
+        if self.config.logging.file_path:
             logger.add(
-                sink=self.config.client.get('logging').get('file_path'),
-                level=self.config.client.get('logging').get('level'),
+                sink=self.config.logging.file_path,
+                level=self.config.logging.level,
                 rotation="500 MB"
             )
         self.db = DatabaseManager(self.config.client.get('database').to_dict())
-        self.qm = QueueManager(self.config.nats)
-        #self.nc = NATS()
+        self.qm = QueueManager(self.config.client.get('nats'))
         
         # Initialize arguments only if properly parsed by docopt
         if arguments:
