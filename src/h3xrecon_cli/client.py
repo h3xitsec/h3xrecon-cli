@@ -37,7 +37,7 @@ class H3XReconClient:
             )
         self.db = DatabaseManager(self.config.client.get('database').to_dict())
         self.qm = QueueManager(self.config.client.get('nats'))
-        
+        logger.info(1)
         # Initialize arguments only if properly parsed by docopt
         if arguments:
             self.arguments = arguments
@@ -103,9 +103,10 @@ class H3XReconClient:
     
     async def send_job(self, function_name: str, program_name: str, target: str, force: bool):
         """Send a job to the worker using QueueManager"""
-        program_id = await self.db.get_program_id(program_name)
-        if not program_id:
-            print(f"Error: Program '{program_name}' not found")
+        try:
+            program_id = await self.db.get_program_id(program_name)
+        except Exception as e:
+            logger.error(f"Non existent program '{program_name}'")
             return
 
         message = {
