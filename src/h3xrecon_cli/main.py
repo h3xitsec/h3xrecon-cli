@@ -5,6 +5,7 @@
 Usage:
     h3xrecon ( program ) ( list )
     h3xrecon ( program ) ( add | del) ( <program> )
+    h3xrecon ( program ) ( import ) ( <file> )
     h3xrecon [ -p <program> ] ( config ) ( add | del ) ( cidr | scope ) ( - | <item> )
     h3xrecon [ -p <program> ] ( config ) ( list ) ( cidr | scope )
     h3xrecon [ -p <program> ] ( config ) ( database ) ( drop)
