@@ -232,11 +232,6 @@ class H3XReconClient:
                     if result.success:
                         print(f"Program '{i}' removed successfully")
 
-                #if await self.db.remove_program(self.arguments['<program>']):
-                #    print(f"Program '{self.arguments['<program>']}' removed successfully")
-                #else:
-                #    print(f"Failed to remove program '{self.arguments['<program>']}'")
-
             # h3xrecon program import
             elif self.arguments.get('import'):
                 await self.import_programs(self.arguments['<file>']) 
