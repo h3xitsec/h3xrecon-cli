@@ -1,0 +1,18 @@
+---
+programs:
+  - name: my_program
+    scope:
+      - myprogram\.com
+      - .*app\.my_program\.com
+      - .*api\.my_program\.com
+    cidr:
+      - 1.2.3.0/24
+      - 1.2.4.0/24
+  - name: my_other_program
+    scope:
+      - myotherprogram\.com
+      - .*app\.my_other_program\.com
+      - .*api\.my_other_program\.com
+    cidr:
+      - 4.5.6.0/24
+      - 3.4.0.0/16
