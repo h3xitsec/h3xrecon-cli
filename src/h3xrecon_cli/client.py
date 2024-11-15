@@ -222,10 +222,20 @@ class H3XReconClient:
             
             # h3xrecon program del
             elif self.arguments.get('del'):
-                if await self.db.remove_program(self.arguments['<program>']):
-                    print(f"Program '{self.arguments['<program>']}' removed successfully")
-                else:
-                    print(f"Failed to remove program '{self.arguments['<program>']}'")
+                items = []
+                if isinstance(self.arguments['<program>'], str):
+                    items = [self.arguments['<program>']]
+                if self.arguments.get('-'):
+                    items.extend([u.rstrip() for u in process_stdin()])
+                for i in items:
+                    result = await self.db.remove_program(i)
+                    if result.success:
+                        print(f"Program '{i}' removed successfully")
+
+                #if await self.db.remove_program(self.arguments['<program>']):
+                #    print(f"Program '{self.arguments['<program>']}' removed successfully")
+                #else:
+                #    print(f"Failed to remove program '{self.arguments['<program>']}'")
 
             # h3xrecon program import
             elif self.arguments.get('import'):
@@ -304,14 +314,12 @@ class H3XReconClient:
         elif self.arguments.get('del'):
             if any(self.arguments.get(t) for t in ['domain', 'ip', 'url']):
                 item_type = next(t for t in ['domain', 'ip', 'url'] if self.arguments.get(t))
+                items = []
                 if isinstance(self.arguments['<item>'], str):
-                    if await self.remove_item(item_type, self.arguments['<program>'], self.arguments['<item>']):
-                        print(f"{item_type.capitalize()} '{self.arguments['<item>']}' removed from program '{self.arguments['<program>']}'")
-                    else:
-                        print(f"Failed to remove {item_type} '{self.arguments['<item>']}' from program '{self.arguments['<program>']}'")
+                    items = [self.arguments['<item>']]
                 if self.arguments.get('-'):
-                    for i in [u.rstrip() for u in process_stdin()]:
-                        await self.remove_item(item_type, self.arguments['<program>'], i)
+                    items.extend([u.rstrip() for u in process_stdin()])
+                await self.remove_item(item_type, self.arguments['<program>'], items)
 
         # h3xrecon -p program list domains/ips/urls
         elif self.arguments.get('list'):          
