@@ -4,6 +4,7 @@ import sys
 import os
 import re
 import subprocess
+import yaml
 from urllib.parse import urlparse
 from loguru import logger
 from tabulate import tabulate
@@ -37,48 +38,12 @@ class H3XReconClient:
             )
         self.db = DatabaseManager(self.config.client.get('database').to_dict())
         self.qm = QueueManager(self.config.client.get('nats'))
-        logger.info(1)
         # Initialize arguments only if properly parsed by docopt
         if arguments:
             self.arguments = arguments
         else:
             raise ValueError("Invalid arguments provided.")
-           
-    async def add_program_config(self, program_name: str, config_type: str, items: list):
-        """Add scope or CIDR configuration to a program
-        Args:
-            program_name (str): Name of the program
-            config_type (str): Type of config ('scope' or 'cidr')
-            items (list): List of items to add
-        """
-        logger.debug(f"Adding {config_type} configuration to program {program_name}: {items}")
-        try:
-            program_id = await self.db.get_program_id(program_name)
-            logger.debug(f"Program ID: {program_id}")
-        except Exception as e:
-            print(f"Error: Program '{program_name}' not found")
-            return
-
-        table_name = f"program_{config_type}s"
-        column_name = "regex" if config_type == "scope" else "cidr"
-        if isinstance(items, str):
-            items = [items]
-        for item in items:
-            # First check if the item already exists
-            check_query = f"""
-            SELECT id FROM {table_name}
-            WHERE program_id = $1 AND {column_name} = $2
-            """
-            existing = await self.db.execute_query(check_query, program_id, item)
-            
-            if not existing:
-                # Only insert if it doesn't exist
-                insert_query = f"""
-                INSERT INTO {table_name} (program_id, {column_name})
-                VALUES ($1, $2)
-                """
-                await self.db.execute_query(insert_query, program_id, item)
-
+                    
     async def remove_program_config(self, program_name: str, config_type: str, items: list):
         """Remove scope or CIDR configuration from a program
         Args:
@@ -151,7 +116,7 @@ class H3XReconClient:
         # Format message based on item type
         if isinstance(items, str):
             items = [items]
-        logger.info(f"Adding {item_type} items to program {program_name}: {items}")
+        logger.debug(f"Adding {item_type} items to program {program_name}: {items}")
         if item_type == 'url':
             items = [{'url': item} for item in items]
         #for item in items:
@@ -192,156 +157,49 @@ class H3XReconClient:
         )
         await self.qm.close()
         return True
-
-
-    # async def get_stream_info(self, stream_name: str = None):
-    #     """Get information about NATS streams"""
-    #     try:
-
-            
-    #         await self.nc.connect(**self.config.nats)
-    #         js = self.nc.jetstream()
-            
-    #         if stream_name:
-    #             # Get info for specific stream
-    #             stream = await js.stream_info(stream_name)
-    #             consumers = await js.consumers_info(stream_name)
-                
-    #             # Calculate unprocessed messages across all consumers
-    #             unprocessed_messages = 0
-    #             for consumer in consumers:
-    #                 unprocessed_messages += consumer.num_pending
-                
-    #             return [{
-    #                 "stream": stream.config.name,
-    #                 "subjects": stream.config.subjects,
-    #                 "messages": stream.state.messages,
-    #                 "bytes": stream.state.bytes,
-    #                 "consumer_count": stream.state.consumer_count,
-    #                 "unprocessed_messages": unprocessed_messages,
-    #                 "first_seq": stream.state.first_seq,
-    #                 "last_seq": stream.state.last_seq,
-    #                 "deleted_messages": stream.state.deleted,
-    #                 "storage_type": stream.config.storage,
-    #                 "retention_policy": stream.config.retention,
-    #                 "max_age": stream.config.max_age
-    #             }]
-    #         else:
-    #             # Get info for all streams
-    #             streams = await js.streams_info()
-    #             result = []
-    #             for s in streams:
-    #                 consumers = await js.consumers_info(s.config.name)
-    #                 unprocessed_messages = sum(c.num_pending for c in consumers)
-                    
-    #                 result.append({
-    #                     "stream": s.config.name,
-    #                     "subjects": s.config.subjects,
-    #                     "messages": s.state.messages,
-    #                     "bytes": s.state.bytes,
-    #                     "consumer_count": s.state.consumer_count,
-    #                     "unprocessed_messages": unprocessed_messages,
-    #                     "first_seq": s.state.first_seq,
-    #                     "last_seq": s.state.last_seq,
-    #                     "deleted_messages": s.state.deleted,
-    #                     "storage_type": s.config.storage,
-    #                     "retention_policy": s.config.retention,
-    #                     "max_age": s.config.max_age
-    #                 })
-    #             return result
-    #     except Exception as e:
-    #         print(f"NATS connection error: {str(e)}")
-    #         return []
-    #     finally:
-    #         try:
-    #             await self.nc.close()
-    #         except:
-    #             pass
-    
-    # async def get_stream_messages(self, stream_name: str, subject: str = None, batch_size: int = 100):
-    #     """Get messages from a specific NATS stream"""
-    #     try:
-    #         await self.nc.connect(**self.config.nats)
-    #         js = self.nc.jetstream()
-            
-    #         # Create a consumer with explicit configuration
-    #         consumer_config = {
-    #             "deliver_policy": "all",  # Get all messages
-    #             "ack_policy": "explicit",
-    #             "replay_policy": "instant",
-    #             "inactive_threshold": 300000000000  # 5 minutes in nanoseconds
-    #         }
-            
-    #         # If subject is provided, use it for subscription
-    #         subscribe_subject = subject if subject else ">"
-            
-    #         consumer = await js.pull_subscribe(
-    #             subscribe_subject,
-    #             durable=None,
-    #             stream=stream_name
-    #         )
-            
-    #         messages = []
-    #         try:
-    #             # Fetch messages
-    #             fetched = await consumer.fetch(batch_size)
-    #             for msg in fetched:
-    #                 # Get stream info for message counts
-    #                 stream_info = await js.stream_info(stream_name)
-                    
-    #                 message_data = {
-    #                     'subject': msg.subject,
-    #                     'data': msg.data.decode() if msg.data else None,
-    #                     'sequence': msg.metadata.sequence.stream if msg.metadata else None,
-    #                     'time': msg.metadata.timestamp if msg.metadata else None,
-    #                     'delivered_count': msg.metadata.num_delivered if msg.metadata else None,
-    #                     'pending_count': msg.metadata.num_pending if msg.metadata else None,
-    #                     'stream_total': stream_info.state.messages if stream_info.state else None,
-    #                     'is_redelivered': msg.metadata.num_delivered > 1 if msg.metadata else False
-    #                 }
-    #                 messages.append(message_data)
-                    
-    #         except Exception as e:
-    #             print(f"Error fetching messages: {str(e)}")
-            
-    #         return messages
-            
-    #     except Exception as e:
-    #         print(f"NATS connection error: {str(e)}")
-    #         return []
-    #     finally:
-    #         try:
-    #             await self.nc.close()
-    #         except:
-    #             pass
-    
-    # async def flush_stream(self, stream_name: str):
-    #     """Flush all messages from a NATS stream
-    #     Args:
-    #         stream_name (str): Name of the stream to flush
-    #     """
-    #     try:
-    #         await self.nc.connect(**self.config.nats)
-    #         js = self.nc.jetstream()
-            
-    #         try:
-    #             # Purge all messages from the stream
-    #             await js.purge_stream(stream_name)
-    #             return {"status": "success", "message": f"Stream {stream_name} flushed successfully"}
-    #         except Exception as e:
-    #             return {"status": "error", "message": f"Error flushing stream: {str(e)}"}
-            
-    #     except Exception as e:
-    #         return {"status": "error", "message": f"NATS connection error: {str(e)}"}
-    #     finally:
-    #         try:
-    #             await self.nc.close()
-    #         except:
-    #             pass
     
     async def drop_program_data(self, program_name: str):
         """Drop all data for a program"""
         await self.db.drop_program_data(program_name)
+    
+    async def import_programs(self, file_path: str):
+        """Import programs from a JSON file"""
+        with open(file_path, 'r') as file:
+            data = yaml.safe_load(file)
+            logger.debug(f"importing programs: {data}")
+            for program in data['programs']:
+                try:
+                    print("Importing program: ", program.get('name'))
+                    logger.debug(f"adding program: {program.get('name')}")
+                    result = await self.db.add_program(program.get('name'))
+                    if not result.success:
+                        print(f"[-] Program '{program.get('name')}' already exists")
+                    elif result.data:
+                        print(f"[+] Program '{program.get('name')}' added successfully")
+                    elif result.error:
+                        print(f"[!] Error adding program: {result.error}")
+                except Exception as e:
+                    logger.error(f"Error adding program: {e}")
+                if program.get('scope'):
+                    for scope in program.get('scope'):
+                        result = await self.db.add_program_scope(program.get('name'), scope)
+                        if not result.success:
+                            print(f"[-] Scope '{scope}' already exists in program '{program.get('name')}'")
+                        elif result.data:
+                            print(f"[+] Scope '{scope}' added successfully to program '{program.get('name')}'")
+                        elif result.error:
+                            print(f"[!] Error adding scope '{scope}' to program '{program.get('name')}': {result.error}")
+                if program.get('cidr'):
+                    for cidr in program.get('cidr'):
+                        result = await self.db.add_program_cidr(program.get('name'), cidr)
+                        if not result.success:
+                            print(f"[-] CIDR '{cidr}' already exists in program '{program.get('name')}'")
+                        elif result.data:
+                            print(f"[+] CIDR '{cidr}' added successfully to program '{program.get('name')}'")
+                        elif result.error:
+                            print(f"[!] Error adding CIDR '{cidr}' to program '{program.get('name')}': {result.error}")
+                print("")
+
         
     async def run(self):
         # h3xrecon program
@@ -353,10 +211,14 @@ class H3XReconClient:
             
             # h3xrecon program add
             elif self.arguments.get('add'):
-                if await self.db.add_program(self.arguments['<program>']):
-                    print(f"Program '{self.arguments['<program>']}' added successfully")
+                result = await self.db.add_program(self.arguments['<program>'])
+                logger.debug(f"db.add_programresult: {result}")
+                if result.failed:
+                    print(f"Error adding program: {result.error}")
+                elif result.data == 0:
+                    print(f"Program '{self.arguments['<program>']}' already exists")
                 else:
-                    print(f"Failed to add program '{self.arguments['<program>']}'")
+                    print(f"Program '{self.arguments['<program>']}' added successfully")
             
             # h3xrecon program del
             elif self.arguments.get('del'):
@@ -365,16 +227,28 @@ class H3XReconClient:
                 else:
                     print(f"Failed to remove program '{self.arguments['<program>']}'")
 
+            # h3xrecon program import
+            elif self.arguments.get('import'):
+                await self.import_programs(self.arguments['<file>']) 
+
         # h3xrecon -p program config
         elif self.arguments.get('config'):
         
             # h3xrecon -p program config add/del
             if self.arguments.get('add') or self.arguments.get('del'):
                 if self.arguments.get('scope'): 
-                    await self.add_program_config(self.arguments['<program>'], "scope", self.arguments['<item>'])
+                    if self.arguments.get('-'):
+                        for i in [u.rstrip() for u in process_stdin()]:
+                            await self.db.add_program_scope(self.arguments['<program>'], i)
+                    else:
+                        await self.db.add_program_scope(self.arguments['<program>'], self.arguments['<item>'])
                 elif self.arguments.get('cidr'):
-                    await self.add_program_config(self.arguments['<program>'], "cidr", self.arguments['<item>'])
-            
+                    if self.arguments.get('-'):
+                        for i in [u.rstrip() for u in process_stdin()]:
+                            await self.db.add_program_cidr(self.arguments['<program>'], i)
+                    else:
+                        await self.db.add_program_cidr(self.arguments['<program>'], self.arguments['<item>'])
+
             # h3xrecon -p program config list scope/cidr
             elif self.arguments.get('list'):
                 if self.arguments.get('scope'):
